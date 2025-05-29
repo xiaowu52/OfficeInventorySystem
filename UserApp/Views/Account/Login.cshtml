@@ -1,0 +1,77 @@
+﻿@{  
+   ViewData["Title"] = "登录";  
+}  
+
+<style>  
+   body {  
+       display: flex;  
+       justify-content: center;  
+       align-items: center;  
+       height: 100vh;  
+       margin: 0;  
+       font-family: Arial, sans-serif;  
+       background-color: #f5f5f5;  
+   }  
+
+   form {  
+       background: white;  
+       padding: 20px;  
+       border-radius: 8px;  
+       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);  
+       width: 300px;  
+   }  
+
+   div {  
+       margin-bottom: 15px;  
+   }  
+
+   label {  
+       display: block;  
+       margin-bottom: 5px;  
+       font-weight: bold;  
+   }  
+
+   input {  
+       width: 100%;  
+       padding: 8px;  
+       box-sizing: border-box;  
+       border: 1px solid #ccc;  
+       border-radius: 4px;  
+   }  
+
+   button {  
+       width: 100%;  
+       padding: 10px;  
+       background-color: #007bff;  
+       color: white;  
+       border: none;  
+       border-radius: 4px;  
+       cursor: pointer;  
+   }  
+
+   button:hover {  
+       background-color: #0056b3;  
+   }  
+
+   p {  
+       margin-top: 10px;  
+       text-align: center;  
+   }  
+</style>  
+
+
+<form method="post">  
+   <div>  
+       <label for="userId">用户名：</label>  
+       <input type="text" id="userId" name="userId" placeholder="请输入用户名" />  
+   </div>  
+   <div>  
+       <label for="password">密码：</label>  
+       <input type="password" id="password" name="password" placeholder="请输入密码" />  
+   </div>  
+   <button type="submit">登录</button>  
+   @if (ViewBag.ErrorMessage != null)  
+   {  
+       <p style="color: red;">@ViewBag.ErrorMessage</p>  
+   }  
+</form>

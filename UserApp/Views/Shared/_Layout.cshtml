@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        :root {
+            --btn-group-width: 180px;
+            --primary-color: #2c3e50;
+        }
+
+        /* 按钮容器定位 */
+        .nav-btns {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 主内容区居中 */
+        .centered-content {
+            max-width: 1200px;
+            margin: 80px auto 20px;
+            padding: 30px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            min-height: calc(100vh - 100px);
+        }
+
+        /* 现代按钮样式 */
+        .nav-btn {
+            padding: 12px 25px;
+            background: var(--primary-color);
+            color: white !important;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(44,62,80,0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航按钮组 -->
+    <div class="nav-btns">
+        <a class="nav-btn" href="/Home/StockQuery">
+            库存查询</a>
+        <a class="nav-btn" href="/Home/RequestItem">领用申请</a>
+    </div>
+
+    <!-- 中央内容容器 -->
+    <main class="centered-content">
+        @RenderBody()
+    </main>
+</body>
+</html>

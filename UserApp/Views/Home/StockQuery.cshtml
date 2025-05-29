@@ -1,0 +1,58 @@
+﻿@model List<UserApp.Models.Item>
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "库存查询";
+}
+
+<!-- 移除原外围容器，直接保留表格 -->
+<div class="table-container">
+    <table class="data-table">
+        <!-- 原表格内容保持不变 -->
+        <thead>
+            <tr>
+                <th>物品编码</th>
+                <th>物品名称</th>
+                <th>类别</th>
+                <th>产地</th>
+                <th>规格</th>
+                <th>型号</th>
+                <th>库存量</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.item_id</td>
+                    <td>@item.name</td>
+                    <td>@item.category</td>
+                    <td>@item.origin</td>
+                    <td>@item.specification</td>
+                    <td>@item.model</td>
+                    <td>@item.stock_quantity</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    /* 表格居中优化 */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px auto;
+    }
+    
+    .data-table th {
+        background: #f8f9fa;
+        padding: 15px;
+        text-align: left;
+    }
+    
+    .data-table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+</style>

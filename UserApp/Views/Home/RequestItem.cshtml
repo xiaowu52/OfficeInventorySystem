@@ -1,0 +1,134 @@
+﻿@model UserApp.Models.RequestViewModel
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "领用申请";
+}
+
+<div class="request-container">
+    <!-- 申请表单 -->
+    <div class="request-form">
+        <h3>新申请</h3>
+        <form method="post">
+            <div class="form-group">
+                <label>选择物品：</label>
+                <select name="itemId" class="form-control">
+                    @foreach (var item in Model.AvailableItems)
+                    {
+                        <option value="@item.item_id">@item.name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label>申请数量：</label>
+                <input type="number" name="quantity" class="form-control" min="1" required />
+            </div>
+            <button type="submit" class="btn btn-primary">提交申请</button>
+        </form>
+    </div>
+
+    <!-- 申请记录 -->
+    <div class="request-history">
+        <h3>申请记录</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>物品名称</th>
+                    <th>数量</th>
+                    <th>申请日期</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var request in Model.RequestHistory)
+                {
+                    <tr>
+                        <td>@request.ItemName</td>
+                        <td>@request.Quantity</td>
+                        <td>@request.RequestDate.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            <span class="status-badge @request.Status.ToString().ToLower()">
+                                @switch (request.Status)
+                                {
+                                    case RequestStatus.申请中 :
+                                        <text>🔄 申请中</text>
+                                        break;
+                                    case RequestStatus.已通过:
+                                        <text>✅ 已通过</text>
+                                        break;
+                                    case RequestStatus.已驳回:
+                                        <text>❌ 已驳回</text>
+                                        break;
+                                }
+                            </span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .request-container {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 30px;
+        padding: 20px;
+    }
+
+    .request-form {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .request-history table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .request-history th {
+        background: #2c3e50;
+        color: white;
+        padding: 12px;
+        text-align: left;
+    }
+
+    .request-history td {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.9em;
+    }
+
+    .申请中 { background: #fff3cd; color: #856404; }
+    .已通过 { background: #d4edda; color: #155724; }
+    .已驳回 { background: #f8d7da; color: #721c24; }
+</style>
