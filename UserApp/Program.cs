@@ -1,4 +1,26 @@
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Caching.Distributed;
+using StackExchange.Redis;
+using UserApp.Services;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Redisé…ç½®
+var redisConnectionString = "localhost:6379";
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+    ConnectionMultiplexer.Connect(redisConnectionString));
+
+// æ·»åŠ Redisåˆ†å¸ƒå¼ç¼“å­˜
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+    options.InstanceName = "UserApp_";
+});
+
+// æ·»åŠ RedisæœåŠ¡
+builder.Services.AddSingleton<RedisService>();
+builder.Services.AddHostedService<RedisPubSubService>();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -7,12 +29,9 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
 });
-builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
-
 var app = builder.Build();
-
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -37,7 +56,7 @@ app.UseEndpoints(endpoints =>
     endpoints.MapControllerRoute(
         name: "default",
         pattern: "{controller=Account}/{action=Login}/{id?}");
-    endpoints.MapControllers(); // Ìí¼ÓÕâĞĞÖ§³ÖÊôĞÔÂ·ÓÉ
+    endpoints.MapControllers(); // æ·»åŠ è¿™è¡Œæ”¯æŒå±æ€§è·¯ç”±
 });
 
 app.Run();

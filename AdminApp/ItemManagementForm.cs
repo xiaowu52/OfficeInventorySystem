@@ -16,11 +16,39 @@ namespace AdminApp
     public partial class ItemManagementForm : Form
     {
         private DataTable itemsTable;
+        private const string CACHE_CHANNEL = "cache_invalidation";
+        
         public ItemManagementForm()
         {
             InitializeComponent();
             LoadItems(); // 确保在窗体初始化时加载物品数据
-
+            // 订阅Redis通道，接收缓存失效消息
+            if (RedisManager.IsAvailable)
+            {
+                RedisManager.SubscribeToChannel(CACHE_CHANNEL, OnCacheInvalidationMessage);
+            }
+        }
+        
+        private void OnCacheInvalidationMessage(string message)
+        {
+            // 在UI线程上处理消息
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => ProcessCacheMessage(message)));
+            }
+            else
+            {
+                ProcessCacheMessage(message);
+            }
+        }
+        
+        private void ProcessCacheMessage(string message)
+        {
+            // 根据消息类型刷新相应数据
+            if (message == "items_updated")
+            {
+                LoadItems();
+            }
         }
 
         private void btnAddItem_Click(object sender, EventArgs e)
@@ -28,6 +56,12 @@ namespace AdminApp
             AddItemForm addItemForm = new AddItemForm();
             // 打开窗体  
             addItemForm.ShowDialog();
+
+            // 使用新的Redis缓存失效方法
+            RedisManager.InvalidateItemsCache();
+            // 通知其他应用程序缓存已更新
+            RedisManager.PublishMessage(CACHE_CHANNEL, "items_updated");
+            
             LoadItems(); // 添加物品后刷新数据 
         }
 
@@ -57,6 +91,12 @@ namespace AdminApp
                     connection.Close();
                     MessageBox.Show("物品删除成功！", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
+                
+                // 使用新的Redis缓存失效方法
+                RedisManager.InvalidateItemsCache();
+                // 通知其他应用程序缓存已更新
+                RedisManager.PublishMessage(CACHE_CHANNEL, "items_updated");
+                
                 // 刷新数据
                 LoadItems();
             }
@@ -68,6 +108,18 @@ namespace AdminApp
 
         private void LoadItems()
         {
+            // 尝试从缓存获取，使用共享的缓存键
+            if (RedisManager.IsAvailable)
+            {
+                var cachedTable = RedisManager.GetDataTable(RedisManager.ITEM_CACHE_KEY);
+                if (cachedTable != null)
+                {
+                    itemsTable = cachedTable;
+                    dgvItems.DataSource = itemsTable;
+                    return; // 使用缓存数据，直接返回
+                }
+            }
+
             // 从 app.config 文件读取连接字符串  
             string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
             using (MySqlConnection connection = new MySqlConnection(connectionString))
@@ -80,8 +132,13 @@ namespace AdminApp
                     itemsTable = new DataTable();
                     adapter.Fill(itemsTable);
                     dgvItems.DataSource = itemsTable;
-                }
 
+                    // 将结果存入缓存，使用共享的缓存键
+                    if (RedisManager.IsAvailable)
+                    {
+                        RedisManager.SetDataTable(RedisManager.ITEM_CACHE_KEY, itemsTable, TimeSpan.FromMinutes(10));
+                    }
+                }
             }
         }
 
@@ -104,6 +161,11 @@ namespace AdminApp
                 ModifyItemForm modifyItemForm = new ModifyItemForm(itemId, name, category, origin, specification, model, stockQuantity);
                 if (modifyItemForm.ShowDialog() == DialogResult.OK)
                 {
+                    // 使用新的Redis缓存失效方法
+                    RedisManager.InvalidateItemsCache();
+                    // 通知其他应用程序缓存已更新
+                    RedisManager.PublishMessage(CACHE_CHANNEL, "items_updated");
+                    
                     // 如果修改成功，刷新 DataGridView
                     LoadItems();
                 }
