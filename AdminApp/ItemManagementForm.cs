@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,7 +18,12 @@ namespace AdminApp
     {
         private DataTable itemsTable;
         private const string CACHE_CHANNEL = "cache_invalidation";
-        
+
+        private int currentPage = 1;       // 当前页码
+        private int pageSize = 100;        // 每页记录数
+        private int totalRecords = 0;      // 总记录数
+        private int totalPages = 0;        // 总页数
+
         public ItemManagementForm()
         {
             InitializeComponent();
@@ -106,40 +112,126 @@ namespace AdminApp
             }
         }
 
-        private void LoadItems()
+        private void LoadItems(int page = 1, int size = 100)
         {
-            // 尝试从缓存获取，使用共享的缓存键
+            // 更新当前页码和页大小
+            currentPage = page;
+            pageSize = size;
+
+            // 尝试从缓存获取
+            string cacheKey = $"{RedisManager.ITEM_CACHE_KEY}_page_{page}_size_{size}";
             if (RedisManager.IsAvailable)
             {
-                var cachedTable = RedisManager.GetDataTable(RedisManager.ITEM_CACHE_KEY);
+                var cachedTable = RedisManager.GetDataTable(cacheKey);
                 if (cachedTable != null)
                 {
                     itemsTable = cachedTable;
                     dgvItems.DataSource = itemsTable;
-                    return; // 使用缓存数据，直接返回
+
+                    // 更新分页信息（从缓存获取总记录数）
+                    string countKey = $"{RedisManager.ITEM_CACHE_KEY}_count";
+                    var cachedCount = RedisManager.GetValue(countKey);
+                    if (!string.IsNullOrEmpty(cachedCount))
+                    {
+                        totalRecords = int.Parse(cachedCount);
+                        UpdatePagingControls();
+                    }
+                    else
+                    {
+                        // 如果没有缓存的总数，则需要查询一次
+                        FetchTotalRecords();
+                    }
+
+                    return;
                 }
             }
 
-            // 从 app.config 文件读取连接字符串  
+            // 从数据库加载数据
             string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string query = "SELECT * FROM item";
-                //读取数据库数据到dgv
-                using (MySqlDataAdapter adapter = new MySqlDataAdapter(query, connection))
-                {
-                    itemsTable = new DataTable();
-                    adapter.Fill(itemsTable);
-                    dgvItems.DataSource = itemsTable;
 
-                    // 将结果存入缓存，使用共享的缓存键
-                    if (RedisManager.IsAvailable)
+                // 1. 获取总记录数
+                FetchTotalRecords(connection);
+
+                // 2. 查询当前页的数据
+                string query = "SELECT * FROM item ORDER BY item_id LIMIT @Offset, @PageSize";
+                using (MySqlCommand command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Offset", (currentPage - 1) * pageSize);
+                    command.Parameters.AddWithValue("@PageSize", pageSize);
+
+                    using (MySqlDataAdapter adapter = new MySqlDataAdapter(command))
                     {
-                        RedisManager.SetDataTable(RedisManager.ITEM_CACHE_KEY, itemsTable, TimeSpan.FromMinutes(10));
+                        itemsTable = new DataTable();
+                        adapter.Fill(itemsTable);
+                        dgvItems.DataSource = itemsTable;
+
+                        // 3. 将结果存入缓存
+                        if (RedisManager.IsAvailable)
+                        {
+                            RedisManager.SetDataTable(cacheKey, itemsTable, TimeSpan.FromMinutes(5));
+                        }
                     }
                 }
             }
+
+            // 更新分页控件显示
+            UpdatePagingControls();
+        }
+
+        // 获取总记录数的方法
+        private void FetchTotalRecords(MySqlConnection existingConnection = null)
+        {
+            bool needToCloseConnection = false;
+            MySqlConnection connection = existingConnection;
+
+            try
+            {
+                if (connection == null)
+                {
+                    // 如果没有传入连接，则创建新的连接
+                    string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
+                    connection = new MySqlConnection(connectionString);
+                    connection.Open();
+                    needToCloseConnection = true;
+                }
+
+                string countQuery = "SELECT COUNT(*) FROM item";
+                using (MySqlCommand command = new MySqlCommand(countQuery, connection))
+                {
+                    totalRecords = Convert.ToInt32(command.ExecuteScalar());
+                    totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
+
+                    // 缓存总记录数
+                    if (RedisManager.IsAvailable)
+                    {
+                        RedisManager.SetValue($"{RedisManager.ITEM_CACHE_KEY}_count", totalRecords.ToString(), TimeSpan.FromMinutes(30));
+                    }
+                }
+            }
+            finally
+            {
+                // 如果是此方法创建的连接，则需要关闭
+                if (needToCloseConnection && connection != null)
+                {
+                    connection.Close();
+                }
+            }
+        }
+
+        // 更新分页控件显示
+        private void UpdatePagingControls()
+        {
+            totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
+
+            // 更新页码信息显示
+            lblPageInfo.Text = $"第 {currentPage} 页，共 {totalPages} 页 (总计 {totalRecords} 条记录)";
+
+            // 启用或禁用翻页按钮
+            btnPrevPage.Enabled = (currentPage > 1);
+            btnNextPage.Enabled = (currentPage < totalPages);
         }
 
         private void btnModify_Click(object sender, EventArgs e)
@@ -180,9 +272,48 @@ namespace AdminApp
         {
             this.Close();
         }
+
+        // 添加一个方法来计算 DataGridView 可容纳的行数
+        private int CalculatePageSizeBasedOnGridHeight()
+        {
+            // 获取可见区域高度（排除标题行）
+            int visibleHeight = dgvItems.Height - dgvItems.ColumnHeadersHeight;
+
+            // 如果没有行，无法计算行高，返回默认值
+            if (dgvItems.Rows.Count == 0)
+                return 100; // 默认页大小
+
+            // 获取行高 (假设所有行高度一致)
+            int rowHeight = dgvItems.Rows[0].Height;
+
+            // 计算可显示的行数 (留出一点空间防止出现垂直滚动条)
+            int visibleRows = (visibleHeight / rowHeight);
+
+            // 确保返回合理的数值
+            if (visibleRows <= 0)
+                visibleRows = 10; // 最小显示10行
+
+            // 可以将结果舍入到最接近的整数倍数，使分页更规整
+            int roundTo = 10; // 例如舍入到10的倍数
+            return (int)Math.Ceiling(visibleRows / (double)roundTo) * roundTo;
+        }
+
         private void ItemManagementForm_Load(object sender, EventArgs e)
         {
             dgvItems.AutoGenerateColumns = false;
+
+            // 初始化页大小下拉框
+            cmbPageSize.Items.AddRange(new object[] { "自动", "50", "100", "200", "500" });
+            cmbPageSize.SelectedIndex = 0; // 默认选择"自动"
+
+            // 根据当前 DataGridView 大小计算合适的页大小
+            if (cmbPageSize.SelectedIndex == 0) // 如果选择了"自动"
+            {
+                pageSize = CalculatePageSizeBasedOnGridHeight();
+            }
+
+            LoadItems(1, pageSize); // 加载第一页数据
+
         }
 
         private void dgvItems_CellClick(object sender, DataGridViewCellEventArgs e)
@@ -230,6 +361,39 @@ namespace AdminApp
                     e.Value = Properties.Resources.ErrorImage;
                 }
             }
+        }
+
+        private void btnPrevPage_Click(object sender, EventArgs e)
+        {
+            if (currentPage > 1)
+            {
+                LoadItems(currentPage - 1, pageSize);
+            }
+        }
+
+        private void btnNextPage_Click(object sender, EventArgs e)
+        {
+            if (currentPage < totalPages)
+            {
+                LoadItems(currentPage + 1, pageSize);
+            }
+        }
+
+        private void cmbPageSize_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // 处理选择的页码大小
+            if (cmbPageSize.SelectedIndex == 0) // "自动"选项
+            {
+                pageSize = CalculatePageSizeBasedOnGridHeight();
+            }
+            else if (int.TryParse(cmbPageSize.SelectedItem.ToString(), out int selectedSize))
+            {
+                pageSize = selectedSize;
+            }
+
+            // 切换页大小时回到第一页
+            currentPage = 1;
+            LoadItems(currentPage, pageSize);
         }
     }
 

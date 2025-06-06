@@ -1,25 +1,28 @@
-﻿using Newtonsoft.Json;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace UserApp.Models
 {
+    [Table("user")]
     public class User
     {
-        [JsonProperty("UserID")]
+        [Key]
+        [Column("user_id")]
         public string UserID { get; set; }
 
-        [JsonProperty("Password")]
+        [Column("password")]
         public string Password { get; set; }
 
-        [JsonProperty("UserName")]
+        [Column("user_name")]
         public string UserName { get; set; }
 
-        [JsonProperty("Gender")]
+        [Column("gender")]
         public string Gender { get; set; }
 
-        [JsonProperty("BirthDate")]
+        [Column("birth_date")]
         public DateTime BirthDate { get; set; }
 
-        [JsonProperty("PhoneNumber")]
+        [Column("phone_number")]
         public string PhoneNumber { get; set; }
     }
 }

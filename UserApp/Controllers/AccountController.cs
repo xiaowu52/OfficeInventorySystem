@@ -1,29 +1,54 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Microsoft.AspNetCore.Http;
+using MySql.Data.MySqlClient;
+using UserApp.Models;
+using Microsoft.Extensions.Caching.Distributed;
+using UserApp.Services;
+using System.Data;
 
 namespace UserApp.Controllers
 {
     public class AccountController : Controller
     {
         private readonly IConfiguration _configuration;
-        public AccountController(IConfiguration configuration)
+        private readonly RedisService _redisService;
+
+        public AccountController(IConfiguration configuration, RedisService redisService)
         {
             _configuration = configuration;
+            _redisService = redisService;
         }
-        
-        List<UserApp.Models.User> LoadUsers()
+
+        private async Task<User> GetUserFromDatabaseAsync(string userId, string password)
         {
-            string? filePath = _configuration["UserFilePath"];
-            if (!string.IsNullOrEmpty(filePath) && System.IO.File.Exists(filePath))
+            string connectionString = _configuration.GetConnectionString("MySqlConnection");
+            using (var connection = new MySqlConnection(connectionString))
             {
-                string json = System.IO.File.ReadAllText(filePath);
-                return JsonConvert.DeserializeObject<List<UserApp.Models.User>>(json) ?? new List<UserApp.Models.User>();
+                await connection.OpenAsync();
+                string query = "SELECT * FROM user WHERE user_id = @UserId AND password = @Password";
+                using (var command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@UserId", userId);
+                    command.Parameters.AddWithValue("@Password", password);
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            return new User
+                            {
+                                UserID = reader.GetString("user_id"),
+                                Password = reader.GetString("password"),
+                                UserName = reader.GetString("user_name"),
+                                Gender = reader.GetString("gender"),
+                                BirthDate = reader.GetDateTime("birth_date"),
+                                PhoneNumber = reader.GetString("phone_number")
+                            };
+                        }
+                    }
+                }
             }
-            return new List<UserApp.Models.User>();
+            return null;
         }
 
         [HttpGet]
@@ -33,7 +58,7 @@ namespace UserApp.Controllers
         }
 
         [HttpPost]
-        public IActionResult Login(string userId, string password)
+        public async Task<IActionResult> Login(string userId, string password)
         {
             if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password))
             {
@@ -41,11 +66,8 @@ namespace UserApp.Controllers
                 return View();
             }
 
-            // 加载用户数据
-            List<UserApp.Models.User> users = LoadUsers();
-
-            // 验证用户名和密码
-            var user = users.FirstOrDefault(u => u.UserID == userId && u.Password == password);
+            // 从数据库验证用户
+            var user = await GetUserFromDatabaseAsync(userId, password);
             if (user != null)
             {
                 // 登录成功，保存用户信息到会话

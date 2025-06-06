@@ -35,11 +35,6 @@ namespace AdminApp
         private void InitializeComponent()
         {
             this.dgvItems = new System.Windows.Forms.DataGridView();
-            this.btnAddItem = new System.Windows.Forms.Button();
-            this.btnDeleteItem = new System.Windows.Forms.Button();
-            this.btnModify = new System.Windows.Forms.Button();
-            this.lblCurrentItem = new System.Windows.Forms.Label();
-            this.btnBackToMain = new System.Windows.Forms.Button();
             this.item_id = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.name = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.category = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -48,6 +43,15 @@ namespace AdminApp
             this.model = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.image_path = new System.Windows.Forms.DataGridViewImageColumn();
             this.stock_quantity = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.btnAddItem = new System.Windows.Forms.Button();
+            this.btnDeleteItem = new System.Windows.Forms.Button();
+            this.btnModify = new System.Windows.Forms.Button();
+            this.lblCurrentItem = new System.Windows.Forms.Label();
+            this.btnBackToMain = new System.Windows.Forms.Button();
+            this.btnPrevPage = new System.Windows.Forms.Button();
+            this.btnNextPage = new System.Windows.Forms.Button();
+            this.lblPageInfo = new System.Windows.Forms.Label();
+            this.cmbPageSize = new System.Windows.Forms.ComboBox();
             ((System.ComponentModel.ISupportInitialize)(this.dgvItems)).BeginInit();
             this.SuspendLayout();
             // 
@@ -71,64 +75,10 @@ namespace AdminApp
             this.dgvItems.ReadOnly = true;
             this.dgvItems.RowHeadersWidth = 62;
             this.dgvItems.RowTemplate.Height = 30;
-            this.dgvItems.Size = new System.Drawing.Size(1057, 814);
+            this.dgvItems.Size = new System.Drawing.Size(1058, 724);
             this.dgvItems.TabIndex = 0;
             this.dgvItems.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvItems_CellClick);
             this.dgvItems.CellFormatting += new System.Windows.Forms.DataGridViewCellFormattingEventHandler(this.dgvItems_CellFormatting);
-            // 
-            // btnAddItem
-            // 
-            this.btnAddItem.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.btnAddItem.Location = new System.Drawing.Point(1089, 170);
-            this.btnAddItem.Name = "btnAddItem";
-            this.btnAddItem.Size = new System.Drawing.Size(143, 64);
-            this.btnAddItem.TabIndex = 1;
-            this.btnAddItem.Text = "添加物品";
-            this.btnAddItem.UseVisualStyleBackColor = true;
-            this.btnAddItem.Click += new System.EventHandler(this.btnAddItem_Click);
-            // 
-            // btnDeleteItem
-            // 
-            this.btnDeleteItem.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.btnDeleteItem.Location = new System.Drawing.Point(1089, 260);
-            this.btnDeleteItem.Name = "btnDeleteItem";
-            this.btnDeleteItem.Size = new System.Drawing.Size(143, 68);
-            this.btnDeleteItem.TabIndex = 2;
-            this.btnDeleteItem.Text = "删除物品";
-            this.btnDeleteItem.UseVisualStyleBackColor = true;
-            this.btnDeleteItem.Click += new System.EventHandler(this.btnDeleteItem_Click);
-            // 
-            // btnModify
-            // 
-            this.btnModify.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.btnModify.Location = new System.Drawing.Point(1075, 350);
-            this.btnModify.Name = "btnModify";
-            this.btnModify.Size = new System.Drawing.Size(172, 70);
-            this.btnModify.TabIndex = 3;
-            this.btnModify.Text = "修改物品信息";
-            this.btnModify.UseVisualStyleBackColor = true;
-            this.btnModify.Click += new System.EventHandler(this.btnModify_Click);
-            // 
-            // lblCurrentItem
-            // 
-            this.lblCurrentItem.AutoSize = true;
-            this.lblCurrentItem.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.lblCurrentItem.Location = new System.Drawing.Point(112, 42);
-            this.lblCurrentItem.Name = "lblCurrentItem";
-            this.lblCurrentItem.Size = new System.Drawing.Size(110, 31);
-            this.lblCurrentItem.TabIndex = 4;
-            this.lblCurrentItem.Text = "当前物品";
-            // 
-            // btnBackToMain
-            // 
-            this.btnBackToMain.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.btnBackToMain.Location = new System.Drawing.Point(1075, 756);
-            this.btnBackToMain.Name = "btnBackToMain";
-            this.btnBackToMain.Size = new System.Drawing.Size(172, 61);
-            this.btnBackToMain.TabIndex = 5;
-            this.btnBackToMain.Text = "退出到主菜单";
-            this.btnBackToMain.UseVisualStyleBackColor = true;
-            this.btnBackToMain.Click += new System.EventHandler(this.btnBackToMain_Click);
             // 
             // item_id
             // 
@@ -200,12 +150,108 @@ namespace AdminApp
             this.stock_quantity.Name = "stock_quantity";
             this.stock_quantity.ReadOnly = true;
             // 
+            // btnAddItem
+            // 
+            this.btnAddItem.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.btnAddItem.Location = new System.Drawing.Point(1089, 170);
+            this.btnAddItem.Name = "btnAddItem";
+            this.btnAddItem.Size = new System.Drawing.Size(143, 64);
+            this.btnAddItem.TabIndex = 1;
+            this.btnAddItem.Text = "添加物品";
+            this.btnAddItem.UseVisualStyleBackColor = true;
+            this.btnAddItem.Click += new System.EventHandler(this.btnAddItem_Click);
+            // 
+            // btnDeleteItem
+            // 
+            this.btnDeleteItem.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.btnDeleteItem.Location = new System.Drawing.Point(1089, 260);
+            this.btnDeleteItem.Name = "btnDeleteItem";
+            this.btnDeleteItem.Size = new System.Drawing.Size(143, 68);
+            this.btnDeleteItem.TabIndex = 2;
+            this.btnDeleteItem.Text = "删除物品";
+            this.btnDeleteItem.UseVisualStyleBackColor = true;
+            this.btnDeleteItem.Click += new System.EventHandler(this.btnDeleteItem_Click);
+            // 
+            // btnModify
+            // 
+            this.btnModify.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.btnModify.Location = new System.Drawing.Point(1075, 350);
+            this.btnModify.Name = "btnModify";
+            this.btnModify.Size = new System.Drawing.Size(172, 70);
+            this.btnModify.TabIndex = 3;
+            this.btnModify.Text = "修改物品信息";
+            this.btnModify.UseVisualStyleBackColor = true;
+            this.btnModify.Click += new System.EventHandler(this.btnModify_Click);
+            // 
+            // lblCurrentItem
+            // 
+            this.lblCurrentItem.AutoSize = true;
+            this.lblCurrentItem.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.lblCurrentItem.Location = new System.Drawing.Point(112, 42);
+            this.lblCurrentItem.Name = "lblCurrentItem";
+            this.lblCurrentItem.Size = new System.Drawing.Size(110, 31);
+            this.lblCurrentItem.TabIndex = 4;
+            this.lblCurrentItem.Text = "当前物品";
+            // 
+            // btnBackToMain
+            // 
+            this.btnBackToMain.Font = new System.Drawing.Font("微软雅黑", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.btnBackToMain.Location = new System.Drawing.Point(1075, 756);
+            this.btnBackToMain.Name = "btnBackToMain";
+            this.btnBackToMain.Size = new System.Drawing.Size(172, 61);
+            this.btnBackToMain.TabIndex = 5;
+            this.btnBackToMain.Text = "退出到主菜单";
+            this.btnBackToMain.UseVisualStyleBackColor = true;
+            this.btnBackToMain.Click += new System.EventHandler(this.btnBackToMain_Click);
+            // 
+            // btnPrevPage
+            // 
+            this.btnPrevPage.Location = new System.Drawing.Point(833, 855);
+            this.btnPrevPage.Name = "btnPrevPage";
+            this.btnPrevPage.Size = new System.Drawing.Size(75, 41);
+            this.btnPrevPage.TabIndex = 6;
+            this.btnPrevPage.Text = "上一页";
+            this.btnPrevPage.UseVisualStyleBackColor = true;
+            this.btnPrevPage.Click += new System.EventHandler(this.btnPrevPage_Click);
+            // 
+            // btnNextPage
+            // 
+            this.btnNextPage.Location = new System.Drawing.Point(914, 855);
+            this.btnNextPage.Name = "btnNextPage";
+            this.btnNextPage.Size = new System.Drawing.Size(75, 41);
+            this.btnNextPage.TabIndex = 7;
+            this.btnNextPage.Text = "下一页";
+            this.btnNextPage.UseVisualStyleBackColor = true;
+            this.btnNextPage.Click += new System.EventHandler(this.btnNextPage_Click);
+            // 
+            // lblPageInfo
+            // 
+            this.lblPageInfo.AutoSize = true;
+            this.lblPageInfo.Location = new System.Drawing.Point(842, 834);
+            this.lblPageInfo.Name = "lblPageInfo";
+            this.lblPageInfo.Size = new System.Drawing.Size(17, 18);
+            this.lblPageInfo.TabIndex = 8;
+            this.lblPageInfo.Text = "1";
+            // 
+            // cmbPageSize
+            // 
+            this.cmbPageSize.FormattingEnabled = true;
+            this.cmbPageSize.Location = new System.Drawing.Point(568, 847);
+            this.cmbPageSize.Name = "cmbPageSize";
+            this.cmbPageSize.Size = new System.Drawing.Size(100, 26);
+            this.cmbPageSize.TabIndex = 9;
+            this.cmbPageSize.SelectedIndexChanged += new System.EventHandler(this.cmbPageSize_SelectedIndexChanged);
+            // 
             // ItemManagementForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1282, 908);
             this.ControlBox = false;
+            this.Controls.Add(this.cmbPageSize);
+            this.Controls.Add(this.lblPageInfo);
+            this.Controls.Add(this.btnNextPage);
+            this.Controls.Add(this.btnPrevPage);
             this.Controls.Add(this.btnBackToMain);
             this.Controls.Add(this.lblCurrentItem);
             this.Controls.Add(this.btnModify);
@@ -238,5 +284,9 @@ namespace AdminApp
         private DataGridViewTextBoxColumn model;
         private DataGridViewImageColumn image_path;
         private DataGridViewTextBoxColumn stock_quantity;
+        private Button btnPrevPage;
+        private Button btnNextPage;
+        private Label lblPageInfo;
+        private ComboBox cmbPageSize;
     }
 }

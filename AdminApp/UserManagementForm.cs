@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -8,70 +7,84 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO;
-using System.Xml.Linq;
-using System.Diagnostics;
 using System.Configuration;
+using MySql.Data.MySqlClient;
 
 namespace AdminApp
 {
-    
     public partial class UserManagementForm : Form
     {
-        
         public UserManagementForm()
         {
             InitializeComponent();
         }
+
         public class User
         {
-            [JsonProperty("UserID")]  // JSON键映射
             public string UserID { get; set; }
-
-            [JsonProperty("Password")]
             public string Password { get; set; }
-
-            [JsonProperty("UserName")]
             public string UserName { get; set; }
-
-            [JsonProperty("Gender")]
             public string Gender { get; set; }
-
-            [JsonProperty("BirthDate")]
             public DateTime BirthDate { get; set; }
-
-            [JsonProperty("PhoneNumber")]
             public string PhoneNumber { get; set; }
         }
 
-        private List<User> users;
+        private BindingList<User> users = new BindingList<User>();
         private bool isDataModified = false;
-        string jsonFilePath = ConfigurationManager.AppSettings["UserFilePath"]; // 从 App.config 中读取路径
+        private string connectionString = ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
 
         private void LoadUserData()
         {
-            if (File.Exists(jsonFilePath))
+            try
             {
-                try
+                // 清空当前用户列表
+                users.Clear();
+
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
-                    // 读取 JSON 文件内容  
-                    string jsonData = File.ReadAllText(jsonFilePath);
-                    // 反序列化为用户列表  
-                    users = JsonConvert.DeserializeObject<List<User>>(jsonData);
-                    dgvUsers.DataSource = new BindingList<User>(users);
-                    // 隐藏密码列  
+                    connection.Open();
+
+                    string query = "SELECT user_id, password, user_name, gender, birth_date, phone_number FROM user";
+                    using (MySqlCommand command = new MySqlCommand(query, connection))
+                    {
+                        using (MySqlDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                User user = new User
+                                {
+                                    UserID = reader.GetString("user_id"),
+                                    Password = reader.GetString("password"),
+                                    UserName = reader.GetString("user_name"),
+                                    Gender = reader.GetString("gender"),
+                                    BirthDate = reader.GetDateTime("birth_date"),
+                                    PhoneNumber = reader.GetString("phone_number")
+                                };
+
+                                users.Add(user);
+                            }
+                        }
+                    }
+                }
+
+                // 更新DataGridView
+                dgvUsers.DataSource = null;
+                dgvUsers.DataSource = users;
+
+                // 隐藏密码列  
+                if (dgvUsers.Columns["Password"] != null)
+                {
                     dgvUsers.Columns["Password"].Visible = false;
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"加载用户数据时发生错误：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+
+                isDataModified = false; // 重置修改标记
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("用户数据文件不存在！", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"加载用户数据时发生错误：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         private void UserManagementForm_Load(object sender, EventArgs e)
         {
             dgvUsers.AutoGenerateColumns = false;
@@ -104,7 +117,7 @@ namespace AdminApp
             }
             this.Close();
         }
-        
+
         private void btnAdduser_Click(object sender, EventArgs e)
         {
             //进入添加用户界面
@@ -123,16 +136,36 @@ namespace AdminApp
                 var confirmResult = MessageBox.Show($"确定要删除用户 {selectedUser.UserName} 吗？", "确认删除", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirmResult == DialogResult.Yes)
                 {
-                    // 从用户列表中移除选中用户
-                    users.Remove(selectedUser);
-              
-                    // 重新绑定数据到 DataGridView
-                    dgvUsers.DataSource = new BindingList<User>(users);
+                    try
+                    {
+                        using (MySqlConnection connection = new MySqlConnection(connectionString))
+                        {
+                            connection.Open();
 
-                    // 保存更新后的用户数据到文件
-                    SaveUserData();
+                            // 删除用户
+                            string deleteQuery = "DELETE FROM user WHERE user_id = @userId";
+                            using (MySqlCommand command = new MySqlCommand(deleteQuery, connection))
+                            {
+                                command.Parameters.AddWithValue("@userId", selectedUser.UserID);
+                                int rowsAffected = command.ExecuteNonQuery();
 
-                    MessageBox.Show("用户已成功删除！", "删除成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                if (rowsAffected > 0)
+                                {
+                                    // 从列表中移除已删除的用户
+                                    users.Remove(selectedUser);
+                                    MessageBox.Show("用户已成功删除！", "删除成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                                else
+                                {
+                                    MessageBox.Show("删除用户失败，用户可能已被删除。", "删除失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"删除用户时发生错误：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
             else
@@ -141,25 +174,94 @@ namespace AdminApp
             }
         }
 
-        private void SaveUserData()
+        private bool SaveUserData()
         {
             try
             {
-                // 序列化用户列表为 JSON  
-                string jsonData = JsonConvert.SerializeObject(users, Formatting.Indented);
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
 
-                // 写入 JSON 文件  
-                File.WriteAllText(jsonFilePath, jsonData);
+                    // 使用事务确保所有修改要么全部成功，要么全部失败
+                    using (MySqlTransaction transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            foreach (User user in users)
+                            {
+                                // 检查用户是否存在
+                                string checkQuery = "SELECT COUNT(*) FROM user WHERE user_id = @userId";
+                                using (MySqlCommand checkCommand = new MySqlCommand(checkQuery, connection, transaction))
+                                {
+                                    checkCommand.Parameters.AddWithValue("@userId", user.UserID);
+                                    int userExists = Convert.ToInt32(checkCommand.ExecuteScalar());
+
+                                    if (userExists > 0)
+                                    {
+                                        // 更新现有用户
+                                        string updateQuery = @"
+                                            UPDATE user 
+                                            SET password = @password, user_name = @userName, gender = @gender, 
+                                                birth_date = @birthDate, phone_number = @phoneNumber 
+                                            WHERE user_id = @userId";
+
+                                        using (MySqlCommand updateCommand = new MySqlCommand(updateQuery, connection, transaction))
+                                        {
+                                            updateCommand.Parameters.AddWithValue("@userId", user.UserID);
+                                            updateCommand.Parameters.AddWithValue("@password", user.Password);
+                                            updateCommand.Parameters.AddWithValue("@userName", user.UserName);
+                                            updateCommand.Parameters.AddWithValue("@gender", user.Gender);
+                                            updateCommand.Parameters.AddWithValue("@birthDate", user.BirthDate);
+                                            updateCommand.Parameters.AddWithValue("@phoneNumber", user.PhoneNumber);
+
+                                            updateCommand.ExecuteNonQuery();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // 插入新用户
+                                        string insertQuery = @"
+                                            INSERT INTO user (user_id, password, user_name, gender, birth_date, phone_number) 
+                                            VALUES (@userId, @password, @userName, @gender, @birthDate, @phoneNumber)";
+
+                                        using (MySqlCommand insertCommand = new MySqlCommand(insertQuery, connection, transaction))
+                                        {
+                                            insertCommand.Parameters.AddWithValue("@userId", user.UserID);
+                                            insertCommand.Parameters.AddWithValue("@password", user.Password);
+                                            insertCommand.Parameters.AddWithValue("@userName", user.UserName);
+                                            insertCommand.Parameters.AddWithValue("@gender", user.Gender);
+                                            insertCommand.Parameters.AddWithValue("@birthDate", user.BirthDate);
+                                            insertCommand.Parameters.AddWithValue("@phoneNumber", user.PhoneNumber);
+
+                                            insertCommand.ExecuteNonQuery();
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 所有操作都成功，提交事务
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch (Exception)
+                        {
+                            // 发生错误，回滚事务
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"保存用户数据时发生错误：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
         }
 
         private void btnModifyconfirm_Click(object sender, EventArgs e)
         {
-            //直接在dgv修改的数据保存到文件中
+            //直接在dgv修改的数据保存到数据库
             try
             {
                 // 将 DataGridView 的数据同步到用户列表
@@ -191,31 +293,32 @@ namespace AdminApp
                             return;
                         }
                         //ID不能重复
-                        if (users.Any(u => u.UserID == user.UserID && u != user))
+                        if (updatedUsers.Count(u => u.UserID == user.UserID) > 1)
                         {
                             MessageBox.Show("用户ID不能重复！", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
                         //性别不能为空
-                        if(string.IsNullOrEmpty(user.Gender))
+                        if (string.IsNullOrEmpty(user.Gender))
                         {
                             MessageBox.Show("性别不能为空！", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
                         //性别为男女，不能为其它任意值
-                        if(user.Gender != "男" &&  user.Gender != "女")
+                        if (user.Gender != "男" && user.Gender != "女")
                         {
                             MessageBox.Show("性别只能为男或女！", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
                     }
-                    users = updatedUsers.ToList();
+                    users = updatedUsers; // 更新用户列表
 
-                    // 保存更新后的用户数据到 JSON 文件
-                    SaveUserData();
-
-                    MessageBox.Show("用户信息已成功保存！", "保存成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    isDataModified = false; // 重置修改标志
+                    // 保存更新后的用户数据到数据库
+                    if (SaveUserData())
+                    {
+                        MessageBox.Show("用户信息已成功保存！", "保存成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        isDataModified = false; // 重置修改标志
+                    }
                 }
                 else
                 {
@@ -227,6 +330,7 @@ namespace AdminApp
                 MessageBox.Show($"保存用户数据时发生错误：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         private void dgv_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             //对选择的单元格以及行选将其姓名输出到lblUsername
@@ -282,14 +386,57 @@ namespace AdminApp
                 }
             }
 
-            //ID是否重复
+            // 检查ID是否重复
             if (columnName == "UserID")
             {
                 string userId = e.FormattedValue.ToString().Trim();
-                if (users.Any(u => u.UserID == userId && dgvUsers.Rows[e.RowIndex].DataBoundItem != u))
+
+                // 检查是否在当前列表中重复
+                int duplicateCount = 0;
+                foreach (DataGridViewRow row in dgvUsers.Rows)
+                {
+                    if (row.Index != e.RowIndex && row.Cells[e.ColumnIndex].Value?.ToString() == userId)
+                    {
+                        duplicateCount++;
+                    }
+                }
+
+                if (duplicateCount > 0)
                 {
                     MessageBox.Show("用户ID不能重复！", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                   dgvUsers.CancelEdit();
+                    dgvUsers.CancelEdit();
+                }
+                else
+                {
+                    // 检查是否与数据库中的其他记录重复(当更改ID时需要检查)
+                    try
+                    {
+                        User currentUser = dgvUsers.Rows[e.RowIndex].DataBoundItem as User;
+                        if (currentUser != null && currentUser.UserID != userId)
+                        {
+                            // 只在ID改变时才检查数据库
+                            using (MySqlConnection connection = new MySqlConnection(connectionString))
+                            {
+                                connection.Open();
+                                string query = "SELECT COUNT(*) FROM user WHERE user_id = @userId";
+                                using (MySqlCommand command = new MySqlCommand(query, connection))
+                                {
+                                    command.Parameters.AddWithValue("@userId", userId);
+                                    int count = Convert.ToInt32(command.ExecuteScalar());
+
+                                    if (count > 0)
+                                    {
+                                        MessageBox.Show("用户ID已存在于数据库中！", "输入错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                        dgvUsers.CancelEdit();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"验证用户ID时发生错误：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
         }
@@ -301,6 +448,7 @@ namespace AdminApp
                 isDataModified = true;
             }
         }
+
         private void dgv_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
             if (dgvUsers.IsCurrentCellDirty) // 检查当前单元格是否真的被修改

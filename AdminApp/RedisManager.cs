@@ -4,6 +4,7 @@ using System.Data;
 using System.Threading.Tasks;
 using StackExchange.Redis;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace AdminApp
 {
@@ -206,15 +207,34 @@ namespace AdminApp
                 return false;
             }
         }
-        
+
         /// <summary>
         /// 当物品数据变更时，清除物品缓存
         /// </summary>
-        public static bool InvalidateItemsCache()
+        public static void InvalidateItemsCache()
         {
-            return Remove(ITEM_CACHE_KEY);
+            if (!IsAvailable) return;
+
+            try
+            {
+                var database = Connection.GetDatabase();
+                var server = Connection.GetServer(Connection.GetEndPoints().First());
+
+                // 获取所有与物品相关的缓存键
+                var keys = server.Keys(pattern: $"{ITEM_CACHE_KEY}*");
+
+                // 删除所有这些键
+                foreach (var key in keys)
+                {
+                    database.KeyDelete(key);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Redis错误: {ex.Message}");
+            }
         }
-        
+
         /// <summary>
         /// 当用户请求状态变更时，清除特定用户的请求缓存
         /// </summary>
@@ -265,5 +285,39 @@ namespace AdminApp
                 System.Diagnostics.Debug.WriteLine($"Redis订阅通道错误: {ex.Message}");
             }
         }
+
+        // 通用设置值方法
+        public static void SetValue(string key, string value, TimeSpan expiry)
+        {
+            if (!IsAvailable) return;
+
+            try
+            {
+                var database = Connection.GetDatabase();
+                database.StringSet(key, value, expiry);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Redis错误: {ex.Message}");
+            }
+        }
+
+        // 通用获取值方法
+        public static string GetValue(string key)
+        {
+            if (!IsAvailable) return null;
+
+            try
+            {
+                var database = Connection.GetDatabase();
+                return database.StringGet(key);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Redis错误: {ex.Message}");
+                return null;
+            }
+        }
+
     }
 }

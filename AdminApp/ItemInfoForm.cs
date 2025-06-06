@@ -13,48 +13,152 @@ namespace AdminApp
 {
     public partial class ItemInfoForm : Form
     {
-        // 添加一个标志用于跟踪是否正在加载数据
-        private bool isLoading = false;
-        // 当前页码
+        // 分页相关变量
         private int currentPage = 1;
-        // 每页显示的记录数
         private int pageSize = 100;
+        private int totalRecords = 0;
+        private int totalPages = 0;
+        private bool isLoading = false;
+
+        // 缓存相关常量
+        private const string CACHE_CHANNEL = "cache_invalidation";
+        private const string ITEM_INFO_CACHE_PREFIX = "item_info_view_";
+
         public ItemInfoForm()
         {
             InitializeComponent();
 
-            // 窗体显示后异步加载数据
-            this.Shown += async (s, e) => await LoadStockInfoAsync();
+            // 窗体加载完成事件
+            this.Load += ItemInfoForm_Load;
 
+            // 订阅Redis通道，接收缓存失效消息
+            if (RedisManager.IsAvailable)
+            {
+                RedisManager.SubscribeToChannel(CACHE_CHANNEL, OnCacheInvalidationMessage);
+            }
         }
 
-        private async Task LoadStockInfoAsync(string searchKeyword = "")
+        private void ItemInfoForm_Load(object sender, EventArgs e)
+        {
+            // 设置DataGridView属性
+            SetupDataGridView();
+
+            // 初次加载数据
+            LoadItemInfoAsync().ConfigureAwait(false);
+        }
+
+        private void SetupDataGridView()
+        {
+            // 配置DataGridView属性
+            dgvStockInfo.AutoGenerateColumns = false;
+
+            // 如果列不存在，则创建列
+            if (dgvStockInfo.Columns.Count == 0)
+            {
+                // 添加物品ID列
+                DataGridViewTextBoxColumn itemIdColumn = new DataGridViewTextBoxColumn();
+                itemIdColumn.DataPropertyName = "item_id";
+                itemIdColumn.HeaderText = "物品编码";
+                itemIdColumn.Width = 150;
+                dgvStockInfo.Columns.Add(itemIdColumn);
+
+                // 添加物品名称列
+                DataGridViewTextBoxColumn nameColumn = new DataGridViewTextBoxColumn();
+                nameColumn.DataPropertyName = "name";
+                nameColumn.HeaderText = "物品名称";
+                nameColumn.Width = 200;
+                dgvStockInfo.Columns.Add(nameColumn);
+
+                // 添加物品类别列
+                DataGridViewTextBoxColumn categoryColumn = new DataGridViewTextBoxColumn();
+                categoryColumn.DataPropertyName = "category";
+                categoryColumn.HeaderText = "物品类别";
+                categoryColumn.Width = 150;
+                dgvStockInfo.Columns.Add(categoryColumn);
+
+                // 添加产量列（stock_quantity）
+                DataGridViewTextBoxColumn yieldColumn = new DataGridViewTextBoxColumn();
+                yieldColumn.DataPropertyName = "yield";
+                yieldColumn.HeaderText = "库存数量";
+                yieldColumn.Width = 150;
+                dgvStockInfo.Columns.Add(yieldColumn);
+            }
+        }
+
+        private void OnCacheInvalidationMessage(string message)
+        {
+            // 在UI线程上处理消息
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => ProcessCacheMessage(message)));
+            }
+            else
+            {
+                ProcessCacheMessage(message);
+            }
+        }
+
+        private void ProcessCacheMessage(string message)
+        {
+            // 根据消息类型刷新相应数据
+            if (message == "items_updated")
+            {
+                LoadItemInfoAsync().ConfigureAwait(false);
+            }
+        }
+
+        private async Task LoadItemInfoAsync()
         {
             if (isLoading) return;
 
             try
             {
                 isLoading = true;
+
+                // 显示加载状态
                 lblLoading.Visible = true;
                 dgvStockInfo.Enabled = false;
 
-                // 更新页码显示
-                lblPageInfo.Text = $"第{currentPage}页";
-                btnPrevPage.Enabled = currentPage > 1;
+                // 1. 获取总记录数
+                totalRecords = await Task.Run(() => GetTotalRecords(txtSearch.Text.Trim()));
 
-                // 使用Task.Run在后台线程执行数据库查询
-                var stockTable = await Task.Run(() => FetchStockDataFromDb(searchKeyword, pageSize, currentPage));
+                // 2. 计算总页数
+                totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
 
-                // 在UI线程更新DataGridView
-                dgvStockInfo.DataSource = stockTable;
+                // 3. 尝试从缓存获取分页数据
+                string cacheKey = $"{ITEM_INFO_CACHE_PREFIX}page_{currentPage}_size_{pageSize}";
+                if (!string.IsNullOrEmpty(txtSearch.Text.Trim()))
+                {
+                    cacheKey += $"_search_{txtSearch.Text.Trim()}";
+                }
 
-                // 如果返回的记录数小于页大小，禁用下一页按钮
-                btnNextPage.Enabled = stockTable.Rows.Count >= pageSize;
+                DataTable itemsTable = null;
+                if (RedisManager.IsAvailable)
+                {
+                    itemsTable = RedisManager.GetDataTable(cacheKey);
+                }
+
+                // 4. 如果缓存中没有，则从数据库加载
+                if (itemsTable == null)
+                {
+                    itemsTable = await Task.Run(() => FetchItemInfoFromView(txtSearch.Text.Trim(), pageSize, currentPage));
+
+                    // 缓存查询结果
+                    if (RedisManager.IsAvailable && itemsTable != null && itemsTable.Rows.Count > 0)
+                    {
+                        RedisManager.SetDataTable(cacheKey, itemsTable, TimeSpan.FromMinutes(5));
+                    }
+                }
+
+                // 5. 更新UI
+                dgvStockInfo.DataSource = itemsTable;
+
+                // 6. 更新分页信息和控制按钮状态
+                UpdatePagingInfo();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"加载数据时发生错误: {ex.Message}", "错误",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"加载物品信息失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -64,20 +168,47 @@ namespace AdminApp
             }
         }
 
-        private DataTable FetchStockDataFromDb(string searchKeyword = "", int pageSize = 100, int pageNumber = 1)
+        private int GetTotalRecords(string searchKeyword = "")
         {
-            DataTable stockTable = new DataTable();
+            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
+            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            {
+                connection.Open();
+
+                string countQuery = "SELECT COUNT(*) FROM v_item_info";
+                if (!string.IsNullOrWhiteSpace(searchKeyword))
+                {
+                    countQuery += " WHERE name LIKE @Search OR item_id LIKE @Search";
+                }
+
+                using (MySqlCommand command = new MySqlCommand(countQuery, connection))
+                {
+                    if (!string.IsNullOrWhiteSpace(searchKeyword))
+                    {
+                        command.Parameters.AddWithValue("@Search", $"%{searchKeyword}%");
+                    }
+
+                    return Convert.ToInt32(command.ExecuteScalar());
+                }
+            }
+        }
+
+        private DataTable FetchItemInfoFromView(string searchKeyword = "", int pageSize = 100, int pageNumber = 1)
+        {
+            DataTable itemsTable = new DataTable();
             string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
 
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string query = "SELECT item_id, name, category, stock_quantity FROM item";
+
+                // 使用视图查询数据
+                string query = "SELECT item_id, name, category, yield FROM v_item_info";
                 if (!string.IsNullOrWhiteSpace(searchKeyword))
                 {
                     query += " WHERE name LIKE @Search OR item_id LIKE @Search";
                 }
-                query += " ORDER BY item_id LIMIT @pageSize OFFSET @offset";
+                query += " ORDER BY item_id LIMIT @PageSize OFFSET @Offset";
 
                 using (MySqlCommand command = new MySqlCommand(query, connection))
                 {
@@ -85,75 +216,52 @@ namespace AdminApp
                     {
                         command.Parameters.AddWithValue("@Search", $"%{searchKeyword}%");
                     }
-                    command.Parameters.AddWithValue("@pageSize", pageSize);
-                    command.Parameters.AddWithValue("@offset", (pageNumber - 1) * pageSize);
+                    command.Parameters.AddWithValue("@PageSize", pageSize);
+                    command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * pageSize);
 
                     using (MySqlDataAdapter adapter = new MySqlDataAdapter(command))
                     {
-                        adapter.Fill(stockTable);
+                        adapter.Fill(itemsTable);
                     }
                 }
             }
 
-            return stockTable;
+            return itemsTable;
         }
 
-        private async Task ChangePage(int direction)
+        private void UpdatePagingInfo()
         {
-            if (direction < 0 && currentPage > 1)
-            {
-                currentPage--;
-            }
-            else if (direction > 0)
-            {
-                currentPage++;
-            }
+            // 更新页码显示
+            lblPageInfo.Text = $"第 {currentPage} / {totalPages} 页 (共 {totalRecords} 条记录)";
 
-            await LoadStockInfoAsync(txtSearch.Text.Trim());
+            // 启用或禁用翻页按钮
+            btnPrevPage.Enabled = (currentPage > 1);
+            btnNextPage.Enabled = (currentPage < totalPages);
         }
 
-        private async Task SearchItemsAsync()
+        private async void btnSearch_Click(object sender, EventArgs e)
         {
             // 搜索时重置到第一页
             currentPage = 1;
-            await LoadStockInfoAsync(txtSearch.Text.Trim());
+            await LoadItemInfoAsync();
         }
 
-        private void LoadStockInfo(string searchKeyword = "", int pageSize = 100, int pageNumber = 1)
+        private async void btnNextPage_Click(object sender, EventArgs e)
         {
-            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
-            using (MySqlConnection connection = new MySqlConnection(connectionString))
+            if (currentPage < totalPages)
             {
-                connection.Open();
-                string query = "SELECT item_id, name, category, stock_quantity FROM item";
-                if (!string.IsNullOrWhiteSpace(searchKeyword))
-                {
-                    query += " WHERE name LIKE @Search OR item_id LIKE @Search";
-                }
-                query += " ORDER BY item_id LIMIT @pageSize OFFSET @offset";
-
-                using (MySqlCommand command = new MySqlCommand(query, connection))
-                {
-                    if (!string.IsNullOrWhiteSpace(searchKeyword))
-                    {
-                        command.Parameters.AddWithValue("@Search", $"%{searchKeyword}%");
-                    }
-                    command.Parameters.AddWithValue("@pageSize", pageSize);
-                    command.Parameters.AddWithValue("@offset", (pageNumber - 1) * pageSize);
-
-                    using (MySqlDataAdapter adapter = new MySqlDataAdapter(command))
-                    {
-                        DataTable stockTable = new DataTable();
-                        adapter.Fill(stockTable);
-                        dgvStockInfo.DataSource = stockTable;
-                    }
-                }
+                currentPage++;
+                await LoadItemInfoAsync();
             }
         }
 
-        private void btnSearch_Click(object sender, EventArgs e)
+        private async void btnPrevPage_Click(object sender, EventArgs e)
         {
-            _= SearchItemsAsync();
+            if (currentPage > 1)
+            {
+                currentPage--;
+                await LoadItemInfoAsync();
+            }
         }
 
         private void btnClose_Click(object sender, EventArgs e)

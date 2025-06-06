@@ -32,10 +32,10 @@
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.btnSearch = new System.Windows.Forms.Button();
             this.btnClose = new System.Windows.Forms.Button();
-            this.lblLoading = new System.Windows.Forms.Label();
             this.btnPrevPage = new System.Windows.Forms.Button();
             this.btnNextPage = new System.Windows.Forms.Button();
             this.lblPageInfo = new System.Windows.Forms.Button();
+            this.lblLoading = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.dgvStockInfo)).BeginInit();
             this.SuspendLayout();
             // 
@@ -47,7 +47,7 @@
             this.dgvStockInfo.Name = "dgvStockInfo";
             this.dgvStockInfo.RowHeadersWidth = 62;
             this.dgvStockInfo.RowTemplate.Height = 30;
-            this.dgvStockInfo.Size = new System.Drawing.Size(1156, 604);
+            this.dgvStockInfo.Size = new System.Drawing.Size(1156, 577);
             this.dgvStockInfo.TabIndex = 0;
             // 
             // txtSearch
@@ -80,57 +80,58 @@
             this.btnClose.UseVisualStyleBackColor = true;
             this.btnClose.Click += new System.EventHandler(this.btnClose_Click);
             // 
-            // lblLoading
-            // 
-            this.lblLoading.AutoSize = true;
-            this.lblLoading.Location = new System.Drawing.Point(514, 61);
-            this.lblLoading.Name = "lblLoading";
-            this.lblLoading.Size = new System.Drawing.Size(215, 18);
-            this.lblLoading.TabIndex = 4;
-            this.lblLoading.Text = "正在加载数据，请稍候...";
-            this.lblLoading.Visible = false;
-            // 
             // btnPrevPage
             // 
             this.btnPrevPage.AutoSize = true;
             this.btnPrevPage.Enabled = false;
-            this.btnPrevPage.Location = new System.Drawing.Point(853, 714);
+            this.btnPrevPage.Location = new System.Drawing.Point(821, 714);
             this.btnPrevPage.Name = "btnPrevPage";
             this.btnPrevPage.Size = new System.Drawing.Size(74, 34);
             this.btnPrevPage.TabIndex = 5;
             this.btnPrevPage.Text = "上一页";
             this.btnPrevPage.UseVisualStyleBackColor = true;
+            this.btnPrevPage.Click += new System.EventHandler(this.btnPrevPage_Click);
             // 
             // btnNextPage
             // 
             this.btnNextPage.AutoSize = true;
             this.btnNextPage.Enabled = false;
-            this.btnNextPage.Location = new System.Drawing.Point(984, 714);
+            this.btnNextPage.Location = new System.Drawing.Point(901, 714);
             this.btnNextPage.Name = "btnNextPage";
             this.btnNextPage.Size = new System.Drawing.Size(74, 34);
             this.btnNextPage.TabIndex = 6;
             this.btnNextPage.Text = "下一页";
             this.btnNextPage.UseVisualStyleBackColor = true;
+            this.btnNextPage.Click += new System.EventHandler(this.btnNextPage_Click);
             // 
             // lblPageInfo
             // 
             this.lblPageInfo.AutoSize = true;
-            this.lblPageInfo.Location = new System.Drawing.Point(936, 714);
+            this.lblPageInfo.Location = new System.Drawing.Point(821, 680);
             this.lblPageInfo.Name = "lblPageInfo";
             this.lblPageInfo.Size = new System.Drawing.Size(42, 34);
             this.lblPageInfo.TabIndex = 7;
             this.lblPageInfo.Text = "1";
             this.lblPageInfo.UseVisualStyleBackColor = true;
             // 
+            // lblLoading
+            // 
+            this.lblLoading.AutoSize = true;
+            this.lblLoading.Location = new System.Drawing.Point(621, 67);
+            this.lblLoading.Name = "lblLoading";
+            this.lblLoading.Size = new System.Drawing.Size(134, 18);
+            this.lblLoading.TabIndex = 8;
+            this.lblLoading.Text = "加载中，请稍后";
+            // 
             // ItemInfoForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1156, 749);
+            this.Controls.Add(this.lblLoading);
             this.Controls.Add(this.lblPageInfo);
             this.Controls.Add(this.btnNextPage);
             this.Controls.Add(this.btnPrevPage);
-            this.Controls.Add(this.lblLoading);
             this.Controls.Add(this.btnClose);
             this.Controls.Add(this.btnSearch);
             this.Controls.Add(this.txtSearch);
@@ -149,9 +150,9 @@
         private System.Windows.Forms.TextBox txtSearch;
         private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.Button btnClose;
-        private System.Windows.Forms.Label lblLoading;
         private System.Windows.Forms.Button btnPrevPage;
         private System.Windows.Forms.Button btnNextPage;
         private System.Windows.Forms.Button lblPageInfo;
+        private System.Windows.Forms.Label lblLoading;
     }
 }
