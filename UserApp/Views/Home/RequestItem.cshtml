@@ -1,134 +1,264 @@
-﻿@model UserApp.Models.RequestViewModel
+﻿@model UserApp.Models.PaginatedList<UserApp.Models.RequestViewModel>
 
 @{
     Layout = "_Layout";
-    ViewData["Title"] = "领用申请";
+    ViewData["Title"] = "历史领用查询";
 }
 
-<div class="request-container">
-    <!-- 申请表单 -->
-    <div class="request-form">
-        <h3>新申请</h3>
-        <form method="post">
-            <div class="form-group">
-                <label>选择物品：</label>
-                <select name="itemId" class="form-control">
-                    @foreach (var item in Model.AvailableItems)
-                    {
-                        <option value="@item.item_id">@item.name</option>
-                    }
-                </select>
-            </div>
-            <div class="form-group">
-                <label>申请数量：</label>
-                <input type="number" name="quantity" class="form-control" min="1" required />
-            </div>
-            <button type="submit" class="btn btn-primary">提交申请</button>
-        </form>
+<div class="history-container">
+    <div class="page-header">
+        <h2>历史领用查询</h2>
+        <p class="text-muted">查看您的所有领用申请记录和状态</p>
     </div>
 
     <!-- 申请记录 -->
-    <div class="request-history">
-        <h3>申请记录</h3>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>物品名称</th>
-                    <th>数量</th>
-                    <th>申请日期</th>
-                    <th>状态</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var request in Model.RequestHistory)
-                {
-                    <tr>
-                        <td>@request.ItemName</td>
-                        <td>@request.Quantity</td>
-                        <td>@request.RequestDate.ToString("yyyy-MM-dd HH:mm")</td>
-                        <td>
-                            <span class="status-badge @request.Status.ToString().ToLower()">
-                                @switch (request.Status)
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>物品名称</th>
+                            <th>数量</th>
+                            <th>申请日期</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Items.Any())
+                        {
+                            @foreach (var request in Model.Items)
+                            {
+                                <tr>
+                                    <td>@request.ItemName</td>
+                                    <td>@request.Quantity</td>
+                                    <td>@request.RequestDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>
+                                        <span class="status-badge @request.Status.ToString().ToLower()">
+                                            @switch (request.Status)
+                                            {
+                                                case RequestStatus.申请中:
+                                                    <i class="fas fa-clock"></i>
+
+                                                    <text> 申请中</text>
+                                                    break;
+                                                case RequestStatus.已通过:
+                                                    <i class="fas fa-check-circle"></i>
+
+                                                    <text> 已通过</text>
+                                                    break;
+                                                case RequestStatus.已驳回:
+                                                    <i class="fas fa-times-circle"></i>
+
+                                                    <text> 已驳回</text>
+                                                    break;
+                                            }
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center py-4">
+                                    <div class="empty-state">
+                                        <i class="fas fa-clipboard-list fa-2x mb-3 text-muted"></i>
+                                        <p>您还没有任何领用申请记录</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 分页控件 -->
+        @if (Model.TotalPages > 1)
+        {
+            <div class="card-footer bg-white">
+                <div class="pagination-wrapper">
+                    <div class="pagination-info">
+                        显示 @Model.Items.Count 条记录，共 @Model.TotalItems 条记录
+                    </div>
+
+                    <div class="pagination-controls">
+                        <div class="btn-group">
+                            @if (Model.HasPreviousPage)
+                            {
+                                <a href="@Url.Action("RequestItem", new { page = Model.PageIndex - 1, pageSize = Model.PageSize })" class="btn btn-outline-primary">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-primary" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                            }
+
+                            <div class="btn-group page-numbers">
+                                @for (int i = Math.Max(1, Model.PageIndex - 2); i <= Math.Min(Model.TotalPages, Model.PageIndex + 2); i++)
                                 {
-                                    case RequestStatus.申请中 :
-                                        <text>🔄 申请中</text>
-                                        break;
-                                    case RequestStatus.已通过:
-                                        <text>✅ 已通过</text>
-                                        break;
-                                    case RequestStatus.已驳回:
-                                        <text>❌ 已驳回</text>
-                                        break;
+                                    if (i == Model.PageIndex)
+                                    {
+                                        <a class="btn btn-primary active">@i</a>
+                                    }
+                                    else
+                                    {
+                                        <a href="@Url.Action("RequestItem", new { page = i, pageSize = Model.PageSize })" class="btn btn-outline-primary">@i</a>
+                                    }
                                 }
-                            </span>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                            </div>
+
+                            @if (Model.HasNextPage)
+                            {
+                                <a href="@Url.Action("RequestItem", new { page = Model.PageIndex + 1, pageSize = Model.PageSize })" class="btn btn-outline-primary">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-primary" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="page-size-selector">
+                        <span>每页显示:</span>
+                        <select id="pageSizeSelector" class="form-select form-select-sm" onchange="changePageSize(this)">
+                            @foreach (var size in new[] { 10, 20, 50, 100 })
+                            {
+                                <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 </div>
 
-<style>
-    .request-container {
-        display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: 30px;
-        padding: 20px;
-    }
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 页面头部样式 */
+        .page-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
 
-    .request-form {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
+        /* 卡片样式 */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 2rem;
+        }
 
-    .form-group {
-        margin-bottom: 15px;
-    }
+        /* 表格样式 */
+        .table {
+            margin-bottom: 0;
+        }
 
-    .form-control {
-        width: 100%;
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
+            .table th {
+                font-weight: 600;
+                border-top: none;
+                background-color: #f8f9fa;
+            }
 
-    .btn-primary {
-        background-color: #007bff;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
+            .table td {
+                vertical-align: middle;
+            }
 
-    .request-history table {
-        width: 100%;
-        border-collapse: collapse;
-    }
+        /* 状态标识 */
+        .status-badge {
+            display: inline-block;
+            padding: 0.4em 0.6em;
+            border-radius: 12px;
+            font-size: 0.9em;
+        }
 
-    .request-history th {
-        background: #2c3e50;
-        color: white;
-        padding: 12px;
-        text-align: left;
-    }
+        .申请中 {
+            background: #fff3cd;
+            color: #856404;
+        }
 
-    .request-history td {
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-    }
+        .已通过 {
+            background: #d4edda;
+            color: #155724;
+        }
 
-    .status-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.9em;
-    }
+        .已驳回 {
+            background: #f8d7da;
+            color: #721c24;
+        }
 
-    .申请中 { background: #fff3cd; color: #856404; }
-    .已通过 { background: #d4edda; color: #155724; }
-    .已驳回 { background: #f8d7da; color: #721c24; }
-</style>
+        /* 空状态样式 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #6c757d;
+            padding: 20px;
+        }
+
+        /* 分页样式 */
+        .pagination-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 10px 15px;
+        }
+
+        .pagination-info {
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+        }
+
+        .page-numbers {
+            margin: 0 0.25rem;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+            .page-size-selector .form-select {
+                width: auto;
+            }
+
+        /* 响应式调整 */
+        @@media (max-width: 768px) {
+            .pagination-wrapper
+
+        {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .pagination-controls {
+            margin: 0.5rem 0;
+        }
+
+        }
+    </style>
+}
+
+<script>
+    function changePageSize(select) {
+        window.location = '@Url.Action("RequestItem", new { page = 1 })' + '&pageSize=' + select.value;
+    }
+</script>

@@ -1,58 +1,360 @@
-﻿@model List<UserApp.Models.Item>
+﻿@model UserApp.Models.PaginatedList<UserApp.Models.Item>
 
 @{
     Layout = "_Layout";
     ViewData["Title"] = "库存查询";
 }
 
-<!-- 移除原外围容器，直接保留表格 -->
-<div class="table-container">
-    <table class="data-table">
-        <!-- 原表格内容保持不变 -->
-        <thead>
-            <tr>
-                <th>物品编码</th>
-                <th>物品名称</th>
-                <th>类别</th>
-                <th>产地</th>
-                <th>规格</th>
-                <th>型号</th>
-                <th>库存量</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model)
-            {
-                <tr>
-                    <td>@item.item_id</td>
-                    <td>@item.name</td>
-                    <td>@item.category</td>
-                    <td>@item.origin</td>
-                    <td>@item.specification</td>
-                    <td>@item.model</td>
-                    <td>@item.stock_quantity</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+<div class="page-header">
+    <h2>库存查询</h2>
+    <p class="text-muted">查看当前所有物品的库存情况</p>
 </div>
 
-<style>
-    /* 表格居中优化 */
-    .data-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px auto;
+<!-- 成功消息提示 -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- 搜索栏 -->
+<div class="search-container">
+    <form method="get" class="search-form">
+        <div class="input-group">
+            <input type="text" name="searchTerm" class="form-control" placeholder="搜索物品名称或编码..." value="@ViewBag.SearchTerm" />
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- 数据卡片 -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <!-- 表格容器 -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>物品编码</th>
+                        <th>物品名称</th>
+                        <th>类别</th>
+                        <th>产地</th>
+                        <th>规格</th>
+                        <th>型号</th>
+                        <th>库存量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Any())
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td><span class="badge bg-light text-dark">@item.item_id</span></td>
+                                <td class="fw-bold">@item.name</td>
+                                <td>@item.category</td>
+                                <td>@(string.IsNullOrEmpty(item.origin) ? "-" : item.origin)</td>
+                                <td>@item.specification</td>
+                                <td>@item.model</td>
+                                <td>
+                                    @if (item.stock_quantity > 10)
+                                    {
+                                        <span class="badge bg-success">@item.stock_quantity</span>
+                                    }
+                                    else if (item.stock_quantity > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark">@item.stock_quantity</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">@item.stock_quantity</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.stock_quantity > 0)
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary request-btn"
+                                                data-item-id="@item.item_id"
+                                                data-item-name="@item.name"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#requestModal">
+                                            申请领用
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" disabled>
+                                            无法领用
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <div class="empty-state">
+                                    <i class="fas fa-search fa-2x mb-3 text-muted"></i>
+                                    <p>没有找到匹配的物品记录</p>
+                                    @if (!string.IsNullOrEmpty(ViewBag.SearchTerm))
+                                    {
+                                        <a href="@Url.Action("StockQuery")" class="btn btn-outline-secondary btn-sm">
+                                            <i class="fas fa-undo"></i> 清除搜索
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 分页控件 -->
+    @if (Model.TotalPages > 1)
+    {
+        <div class="card-footer bg-white">
+            <div class="pagination-wrapper">
+                <div class="pagination-info">
+                    显示 @Model.Items.Count 条记录，共 @Model.TotalItems 条记录
+                </div>
+
+                <div class="pagination-controls">
+                    <div class="btn-group">
+                        @if (Model.HasPreviousPage)
+                        {
+                            <a href="@Url.Action("StockQuery", new { page = Model.PageIndex - 1, pageSize = Model.PageSize, searchTerm = ViewBag.SearchTerm })"
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-primary" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                        }
+
+                        <div class="btn-group page-numbers">
+                            @for (int i = Math.Max(1, Model.PageIndex - 2); i <= Math.Min(Model.TotalPages, Model.PageIndex + 2); i++)
+                            {
+                                if (i == Model.PageIndex)
+                                {
+                                    <a class="btn btn-primary active">@i</a>
+                                }
+                                else
+                                {
+                                    <a href="@Url.Action("StockQuery", new { page = i, pageSize = Model.PageSize, searchTerm = ViewBag.SearchTerm })"
+                                       class="btn btn-outline-primary">@i</a>
+                                }
+                            }
+                        </div>
+
+                        @if (Model.HasNextPage)
+                        {
+                            <a href="@Url.Action("StockQuery", new { page = Model.PageIndex + 1, pageSize = Model.PageSize, searchTerm = ViewBag.SearchTerm })"
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-primary" disabled>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="page-size-selector">
+                    <span>每页显示:</span>
+                    <select id="pageSizeSelector" class="form-select form-select-sm" onchange="changePageSize(this)">
+                        @foreach (var size in new[] { 10, 20, 50, 100 })
+                        {
+                            <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
     }
-    
-    .data-table th {
-        background: #f8f9fa;
-        padding: 15px;
-        text-align: left;
-    }
-    
-    .data-table td {
-        padding: 12px;
-        border-bottom: 1px solid #eee;
-    }
-</style>
+</div>
+
+<!-- 领用申请模态框 -->
+<div class="modal fade" id="requestModal" tabindex="-1" aria-labelledby="requestModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="requestModalLabel">领用申请</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="@Url.Action("SubmitRequest", "Home")">
+                <div class="modal-body">
+                    <input type="hidden" id="selectedItemId" name="SelectedItemId" />
+
+                    <div class="mb-3">
+                        <label class="form-label">物品名称:</label>
+                        <div id="itemNameDisplay" class="form-control-plaintext fw-bold"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">申请数量:</label>
+                        <input type="number" class="form-control" id="quantity" name="Quantity" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">提交申请</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 页面头部样式 */
+        .page-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* 搜索框样式 */
+        .search-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .search-form .input-group {
+            max-width: 500px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 2rem;
+        }
+
+        /* 表格样式 */
+        .table {
+            margin-bottom: 0;
+        }
+
+            .table th {
+                font-weight: 600;
+                border-top: none;
+                background-color: #f8f9fa;
+            }
+
+            .table td {
+                vertical-align: middle;
+            }
+
+            .table tr:hover {
+                background-color: rgba(0, 123, 255, 0.03);
+            }
+
+        /* 空状态样式 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #6c757d;
+        }
+
+        /* 分页样式 */
+        .pagination-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .pagination-info {
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+        }
+
+        .page-numbers {
+            margin: 0 0.25rem;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+            .page-size-selector .form-select {
+                width: auto;
+            }
+
+        /* 响应式调整 */
+        @@media (max-width: 768px) {
+            .pagination-wrapper
+
+        {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .pagination-controls {
+            margin: 0.5rem 0;
+        }
+
+        }
+
+        /* 徽章样式 */
+        .badge {
+            padding: 0.4em 0.6em;
+            font-weight: normal;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        // 现有的页面大小改变函数
+        function changePageSize(select) {
+            window.location = '@Url.Action("StockQuery", new { page = 1, searchTerm = ViewBag.SearchTerm })' + '&pageSize=' + select.value;
+        }
+
+        // 添加领用申请按钮的处理逻辑
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取所有申请按钮
+            const requestBtns = document.querySelectorAll('.request-btn');
+
+            // 为每个按钮添加点击事件
+            requestBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // 获取物品信息
+                    const itemId = this.getAttribute('data-item-id');
+                    const itemName = this.getAttribute('data-item-name');
+
+                    // 设置模态框中的物品信息
+                    document.getElementById('selectedItemId').value = itemId;
+                    document.getElementById('itemNameDisplay').textContent = itemName;
+
+                    // 重置数量输入
+                    document.getElementById('quantity').value = 1;
+                });
+            });
+        });
+    </script>
+}
