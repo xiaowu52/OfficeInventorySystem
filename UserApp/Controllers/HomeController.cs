@@ -241,7 +241,7 @@ namespace UserApp.Controllers
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string query = "INSERT INTO request (item_id, quantity, user_id, user_name, request_date, status) VALUES (@ItemId, @Quantity, @UserID, @UserName, @Date, '')";
+                string query = "INSERT INTO request (item_id, quantity, user_id, user_name, request_date, status) VALUES (@ItemId, @Quantity, @UserID, @UserName, @Date, @Status)";
                 using (MySqlCommand command = new MySqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@ItemId", model.SelectedItemId);
@@ -249,6 +249,7 @@ namespace UserApp.Controllers
                     command.Parameters.AddWithValue("@UserID", userId);
                     command.Parameters.AddWithValue("@UserName", userName);
                     command.Parameters.AddWithValue("@Date", DateTime.Now);
+                    command.Parameters.AddWithValue("@Status", RequestStatus.申请中.ToString()); // 使用枚举值
                     command.ExecuteNonQuery();
                 }
             }

@@ -331,8 +331,19 @@
 @section Scripts {
     <script>
         // 现有的页面大小改变函数
-        function changePageSize(select) {
-            window.location = '@Url.Action("StockQuery", new { page = 1, searchTerm = ViewBag.SearchTerm })' + '&pageSize=' + select.value;
+            function changePageSize(select) {
+            // 获取当前URL中的searchTerm参数
+            const searchTerm = '@Html.Raw(ViewBag.SearchTerm)';
+
+            // 构建新的URL，确保包含搜索条件
+            let url = '@Url.Action("StockQuery", new { page = 1 })' + '&pageSize=' + select.value;
+
+            // 如果有搜索条件，则添加到URL
+            if (searchTerm) {
+                url += '&searchTerm=' + encodeURIComponent(searchTerm);
+            }
+
+            window.location = url;
         }
 
         // 添加领用申请按钮的处理逻辑

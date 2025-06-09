@@ -98,7 +98,7 @@ namespace AdminApp
                     MessageBox.Show("物品删除成功！", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 
-                // 使用新的Redis缓存失效方法
+                // 使用Redis缓存失效方法
                 RedisManager.InvalidateItemsCache();
                 // 通知其他应用程序缓存已更新
                 RedisManager.PublishMessage(CACHE_CHANNEL, "items_updated");
