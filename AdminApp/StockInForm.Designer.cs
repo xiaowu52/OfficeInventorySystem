@@ -44,6 +44,7 @@ namespace AdminApp
             this.numQuantity = new System.Windows.Forms.NumericUpDown();
             this.txtUnitPrice = new System.Windows.Forms.TextBox();
             this.cboItemId = new System.Windows.Forms.ComboBox();
+            this.lblAveragePrice = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.numQuantity)).BeginInit();
             this.SuspendLayout();
             // 
@@ -167,12 +168,23 @@ namespace AdminApp
             this.cboItemId.Name = "cboItemId";
             this.cboItemId.Size = new System.Drawing.Size(315, 39);
             this.cboItemId.TabIndex = 16;
+            this.cboItemId.SelectedIndexChanged += new System.EventHandler(this.cboItemId_SelectedIndexChanged);
+            // 
+            // lblAveragePrice
+            // 
+            this.lblAveragePrice.AutoSize = true;
+            this.lblAveragePrice.Location = new System.Drawing.Point(22, 303);
+            this.lblAveragePrice.Name = "lblAveragePrice";
+            this.lblAveragePrice.Size = new System.Drawing.Size(134, 18);
+            this.lblAveragePrice.TabIndex = 17;
+            this.lblAveragePrice.Text = "当前物品均价：";
             // 
             // StockInForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(928, 716);
+            this.Controls.Add(this.lblAveragePrice);
             this.Controls.Add(this.cboItemId);
             this.Controls.Add(this.numQuantity);
             this.Controls.Add(this.dtpPurchase);
@@ -208,5 +220,6 @@ namespace AdminApp
         private NumericUpDown numQuantity;
         private TextBox txtUnitPrice;
         private ComboBox cboItemId;
+        private Label lblAveragePrice;
     }
 }

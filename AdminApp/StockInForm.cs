@@ -169,6 +169,60 @@ namespace AdminApp
             }
         }
 
+        // 在StockInForm.cs中添加一个方法来获取物品的平均价格
+        private decimal GetAveragePrice(string itemId)
+        {
+            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["MySqlConnection"].ConnectionString;
+            decimal avgPrice = 0;
+
+            try
+            {
+                using (var conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    // 从视图中查询平均价格
+                    var cmd = new MySqlCommand(@"
+                        SELECT average_price 
+                        FROM item_avg_price_view
+                        WHERE item_id = @item_id", conn);
+
+                    cmd.Parameters.AddWithValue("@item_id", itemId);
+
+                    var result = cmd.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        avgPrice = Convert.ToDecimal(result);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"获取平均价格失败: {ex.Message}");
+            }
+
+            return avgPrice;
+        }
+
+        // 更新显示均价的标签
+        private void UpdateAveragePriceLabel(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId))
+            {
+                lblAveragePrice.Text = "";
+                return;
+            }
+
+            decimal avgPrice = GetAveragePrice(itemId);
+
+            if (avgPrice > 0)
+            {
+                lblAveragePrice.Text = $"(历史均价: ¥{avgPrice:N2})";
+            }
+            else
+            {
+                lblAveragePrice.Text = "(无历史价格)";
+            }
+        }
         private void BindComboBox(List<ComboBoxItem> items)
         {
             cboItemId.BeginUpdate();  // 批量更新优化性能
@@ -179,5 +233,17 @@ namespace AdminApp
             cboItemId.EndUpdate();
         }
 
+        private void cboItemId_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cboItemId.SelectedItem != null)
+            {
+                string selectedItemId = ((ComboBoxItem)cboItemId.SelectedItem).Value;
+                UpdateAveragePriceLabel(selectedItemId);
+            }
+            else
+            {
+                lblAveragePrice.Text = "";
+            }
+        }
     }
 }
